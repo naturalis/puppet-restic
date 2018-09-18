@@ -1,0 +1,40 @@
+#!/bin/bash
+#
+# PgSQL Backup Script
+#Dumps postgres databases to a file for another backup tool to pick up.
+#
+##### START CONFIG ###################################################
+
+USER=<%= @pgsqlbackupuser %>
+DIR=<%= @backuprootfolder %>/pgsql
+PREFIX=pgsql
+<% if scope.lookupvar('role_backup::docker') == true -%>
+CMD="docker exec -t <%= scope.lookupvar('role_backup::dockercontainer') %>"
+<% else -%>
+CMD="su - ${USER} -c "
+chown -R ${USER}:root /var/backup
+<% end -%> 
+
+
+##### STOP CONFIG ####################################################
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+set -o pipefail
+
+<% if @pgsqlalldatabases == true -%>
+${CMD} "pg_dumpall" -U postgres | gzip -c > ${DIR}/${PREFIX}.gz
+<% else -%>
+<% @pgsqldatabasearray.each do |db| -%>
+<% if @pgsqlprebackupvacuum == true -%>
+${CMD} "/usr/bin/psql -d <%=db %> <<EOF
+SET statement_timeout = 0;
+VACUUM ANALYZE;
+EOF" | grep -v "SET"
+<% end -%> 
+${CMD} "pg_dumpall -g -U postgres > ${DIR}/${PREFIX}_<%=db %>_globals.sql"
+${CMD} "pg_dump <%=db %> -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump"
+${CMD} "pg_dump <%=db %> -Fc > ${DIR}/${PREFIX}_<%=db %>.dump"
+<% end -%> 
+<% end -%>
+
+chown -R root:root /var/backup

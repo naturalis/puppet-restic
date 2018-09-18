@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+# Samba Backup Script
+# Dumps samba database for recovery groupid's
+#
+##### START CONFIG ###################################################
+
+DIR=<%= @backuprootfolder %>/samba
+
+##### STOP CONFIG ####################################################
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+set -o pipefail
+
+cd /var/lib/samba
+/usr/bin/tdbbackup *.tdb
+mv *.bak ${DIR}
+
+
+
+
+
+
+

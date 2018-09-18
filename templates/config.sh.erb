@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+#
+# This file is managed by puppet
+#
+
+BACKUP_PATH=/
+AWS_ACCESS_KEY_ID=<%= @restic_aws_access_key %>
+AWS_SECRET_ACCESS_KEY=<%= @restic_aws_access_key %>
+REPO="<%= @restic_aws_repo %>"
+
+UPLOAD_LIMIT_KiB=<%= @restic_upload_limit %>
+DOWNLOAD_LIMIT_KiB=<%= @restic_download_limit %>
+## time before previous backup before backup can be started
+## other possibles are (instead of yesterday)
+## -1 days
+## -24 hour
+## -5 hour
+TIME_BETWEEN_BACKUP=yesterday
+
+PASSWORD_FILE=<%= @restic_path %>/password
+RESTIC_BIN=<%= @restic_path %>/<%= @restic_binary %>

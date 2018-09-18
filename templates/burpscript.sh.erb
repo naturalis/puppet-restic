@@ -1,0 +1,17 @@
+#!/bin/bash
+#
+# Burp Backup Script 
+# Combines multiple scripts to one.
+#
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+<% @pre_command_array.each do |task| -%>
+<% unless task == :undef -%>
+<%= task %>
+<% end -%> 
+<% end -%>
+
+
+
+
+
