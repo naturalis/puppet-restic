@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # ADD Lock check
-source config.sh
+source <%= @restic_path %>/config.sh
 
-WARNING_LEVEL="-28 hour"
-ERROR_LEVEL="-48 hour"
-MAX_JOB_RUNTIME="-48 hour"
+WARNING_LEVEL="-<%= @chkwarninghours %> hour"
+ERROR_LEVEL="-<%= @chkcriticalhours %> hour"
+MAX_JOB_RUNTIME="-<%= @chkmaxruntimehours %> hour"
 
 ### --- LOGIC --- ###
 
@@ -33,8 +33,20 @@ if [ "$NUM_OF_PROC" = "1" ]; then
 fi
 
 # check if backup has been made
-NUM_OF_BACKUP=`$RUN_RESTIC snapshots | grep ^0\ snapshots | wc -l`
-#$RUN_RESTIC snapshots
+RESTIC_OUTPUT=`$RUN_RESTIC snapshots 2>&1`
+NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep ^0\ snapshots | wc -l`
+
+echo $RESTIC_OUTPUT | grep -q "The AWS Access Key"
+if [ $? -eq 0 ];then
+    echo "AWS Access credentials are incorrect"
+    exit 2
+fi
+
+echo $RESTIC_OUTPUT | grep -q "Is there a repository at the following location"
+if [ $? -eq 0 ];then
+    echo "Repository ${REPO} not found"
+    exit 2
+fi
 
 if [ "$NUM_OF_BACKUP" = "1" ] ; then
     echo "ERROR: no backups have been made"
@@ -61,3 +73,4 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup is ok"
 exit 0
 
+OB

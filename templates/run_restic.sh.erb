@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+source <%= @restic_path %>/config.sh
+
+export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
+export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
+export GOGC=$GOGC
+RUN_RESTIC="$RESTIC_BIN --repo $REPO --password-file $PASSWORD_FILE --limit-upload $UPLOAD_LIMIT_KiB --no-cache --limit-download $DOWNLOAD_LIMIT_KiB"
+
+$RUN_RESTIC $@
+

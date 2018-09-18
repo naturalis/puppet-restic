@@ -4,8 +4,9 @@
 #
 
 BACKUP_PATH=/
-AWS_ACCESS_KEY_ID=<%= @restic_aws_access_key %>
-AWS_SECRET_ACCESS_KEY=<%= @restic_aws_access_key %>
+AWS_ACCESS_KEY_ID="<%= @restic_aws_access_key %>"
+AWS_SECRET_ACCESS_KEY="<%= @restic_aws_secret_key %>"
+GOGC=5
 REPO="<%= @restic_aws_repo %>"
 
 UPLOAD_LIMIT_KiB=<%= @restic_upload_limit %>
@@ -18,4 +19,5 @@ DOWNLOAD_LIMIT_KiB=<%= @restic_download_limit %>
 TIME_BETWEEN_BACKUP=yesterday
 
 PASSWORD_FILE=<%= @restic_path %>/password
+EXCLUDE_FILE=<%= @restic_path %>/exclude_list
 RESTIC_BIN=<%= @restic_path %>/<%= @restic_binary %>
