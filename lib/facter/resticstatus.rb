@@ -1,6 +1,8 @@
 Facter.add('restic_status') do
   setcode do
-    Facter::Core::Execution.execute('/usr/bin/chkrestic')
+    if File.exists?('/usr/bin/chkrestic')
+      Facter::Core::Execution.execute('/usr/bin/chkrestic')
+    end
   end
 end
 

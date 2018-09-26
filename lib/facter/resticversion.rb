@@ -1,6 +1,9 @@
 Facter.add('restic_version') do
   setcode do
-    Facter::Core::Execution.execute('/usr/bin/restic version')
+    if File.exists?('/usr/bin/restic')
+      Facter::Core::Execution.execute('/usr/bin/restic version')
+    end
+
   end
 end
 

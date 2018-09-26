@@ -175,7 +175,7 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
   }
 
 # Create restic cronjob
-  if ($cron == 'true'){
+  if ($cron == true){
     cron { 'initiate backup':
       command => "${restic_path}/run_backup.sh >> /var/log/restic/cron.log",
       user    => root,
