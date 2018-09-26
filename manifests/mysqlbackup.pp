@@ -3,22 +3,17 @@
 # Mysql backup script class
 #
 class restic::mysqlbackup(
-  $mysqlalldatabases    = undef,
-  $mysqldatabasearray   = undef,
-  $mysqlbackupuser      = undef,
-  $mysqlbackuppassword  = undef,
-  $backuprootfolder     = undef,
 ){
 
 # create mysql directory in backuprootfolder
-  file {"${backuprootfolder}/mysql":
+  file {"${restic::backuprootfolder}/mysql":
     ensure                  => 'directory',
     mode                    => '0700',
-    require                 => File[$backuprootfolder]
+    require                 => File[$restic::backuprootfolder]
   }
 
 # create mysql backup script from template
-  file {'/usr/local/sbin/mysqlbackup.sh':
+  file {"${restic::restic_path}/mysqlbackup.sh":
     ensure                  => 'file',
     mode                    => '0700',
     content                 => template('restic/mysqlbackup.sh.erb')

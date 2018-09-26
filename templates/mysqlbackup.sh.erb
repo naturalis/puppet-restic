@@ -10,12 +10,12 @@
 #
 ##### START CONFIG ###################################################
 
-USER=<%= @mysqlbackupuser %>
-PASS=<%= @mysqlbackuppassword %>
-DIR=<%= @backuprootfolder %>/mysql
+USER=<%= scope.lookupvar('restic::mysqlbackupuser') %>
+PASS=<%= scope.lookupvar('restic::mysqlbackuppassword') %>
+DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/mysql
 PREFIX=mysql
-<% if scope.lookupvar('role_backup::docker') == true -%>
-CMD="docker exec -t <%= scope.lookupvar('role_backup::dockercontainer') %>"
+<% if scope.lookupvar('restic::docker_compose') == true -%>
+CMD="cd scope.lookupvar('restic::docker_compose_dir') && docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD=""
 <% end -%>
@@ -27,12 +27,12 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 set -o pipefail
 
-<% if @mysqlbackuppassword != "" -%>
+<% if scope.lookupvar('restic::mysqlbackuppassword') != "" -%>"
   PASS="-p${PASS}"
 <% end -%>
 
-<% if @mysqlalldatabases == true -%>
-  <% if @mysqlfileperdatabase == true -%>
+<% if scope.lookupvar('restic::mysqlalldatabases') == true -%>
+  <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
     ${CMD} mysql -u${USER} ${PASS} -s -r -N -e 'SHOW DATABASES' | while read dbname
     do
     ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction \
@@ -43,12 +43,12 @@ set -o pipefail
     ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --all-databases | gzip -c > ${DIR}/${PREFIX}.sql.gz
   <% end -%>
 <% else -%>
-  <% if @mysqlfileperdatabase == true -%>
-    <% @mysqldatabasearray.each do |db| -%>
+  <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
+    <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%>
       ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --databases <%=db %> | gzip -c > ${DIR}/${PREFIX}_<%=db %>.sql.gz
     <% end -%>
   <% else -%>
-    ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --databases <% @mysqldatabasearray.each do |db| -%><%=db %> <% end -%> | gzip -c > ${DIR}/${PREFIX}.sql.gz
+    ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%=db %> <% end -%> | gzip -c > ${DIR}/${PREFIX}.sql.gz
   <% end -%>
 <% end -%>
 

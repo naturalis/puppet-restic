@@ -5,7 +5,7 @@
 #
 ##### START CONFIG ###################################################
 
-DIR=<%= @backuprootfolder %>/samba
+DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/samba
 
 ##### STOP CONFIG ####################################################
 PATH=/usr/bin:/usr/sbin:/bin:/sbin

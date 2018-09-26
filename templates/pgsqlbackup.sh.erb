@@ -5,14 +5,14 @@
 #
 ##### START CONFIG ###################################################
 
-USER=<%= @pgsqlbackupuser %>
-DIR=<%= @backuprootfolder %>/pgsql
+USER=<%= scope.lookupvar('restic::pgsqlbackupuser') %>
+DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/pgsql
 PREFIX=pgsql
-<% if scope.lookupvar('role_backup::docker') == true -%>
-CMD="docker exec -t <%= scope.lookupvar('role_backup::dockercontainer') %>"
+<% if scope.lookupvar('restic::docker_compose') == true -%>
+CMD="cd scope.lookupvar('restic::docker_compose_dir') && docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD="su - ${USER} -c "
-chown -R ${USER}:root /var/backup
+chown -R ${USER}:root <%= scope.lookupvar('restic::backuprootfolder') %>
 <% end -%> 
 
 
@@ -21,11 +21,11 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 set -o pipefail
 
-<% if @pgsqlalldatabases == true -%>
+<% if scope.lookupvar('restic::pgsqlalldatabases') == true -%>
 ${CMD} "pg_dumpall" -U postgres | gzip -c > ${DIR}/${PREFIX}.gz
 <% else -%>
-<% @pgsqldatabasearray.each do |db| -%>
-<% if @pgsqlprebackupvacuum == true -%>
+<% scope.lookupvar('restic::pgsqldatabasearray').each do |db| -%>
+<% if scope.lookupvar('restic::pgsqlprebackupvacuum') == true -%>
 ${CMD} "/usr/bin/psql -d <%=db %> <<EOF
 SET statement_timeout = 0;
 VACUUM ANALYZE;
@@ -37,4 +37,4 @@ ${CMD} "pg_dump <%=db %> -Fc > ${DIR}/${PREFIX}_<%=db %>.dump"
 <% end -%> 
 <% end -%>
 
-chown -R root:root /var/backup
+chown -R root:root <%= scope.lookupvar('restic::backuprootfolder') %>
