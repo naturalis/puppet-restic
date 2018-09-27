@@ -10,6 +10,7 @@ export GOGC=$GOGC
 
 RUN_RESTIC="$RESTIC_BIN --repo $REPO --password-file $PASSWORD_FILE --limit-upload $UPLOAD_LIMIT_KiB --no-cache"
 BACKUP_NEEDED=0
+HOST=`hostname`
 
 # check if password file exists
 if [ ! -f $PASSWORD_FILE ]; then
@@ -26,7 +27,9 @@ if [ "$NUM_OF_PROC" = "1" ]; then
 fi
 
 # check if backup has been made
-NUM_OF_BACKUP=`$RUN_RESTIC snapshots -H $HOST | grep "snapshots" | wc -l`
+SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST | grep "snapshots"`
+
+NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
     echo "Initializing Repo and order to create backup"
     $RUN_RESTIC init
@@ -34,7 +37,7 @@ if [ "$NUM_OF_BACKUP" = "0" ] ; then
 fi
 
 # check if repo is initialised but no backups are ever made.
-NUM_OF_BACKUP=`echo $NUM_OF_BACKUP | grep "^0\ snapshots" | wc -l`
+NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "^0\ snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "1" ] ; then
     echo "No backups made"
     BACKUP_NEEDED=1

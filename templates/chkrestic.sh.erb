@@ -6,6 +6,7 @@ source <%= @restic_path %>/config.sh
 WARNING_LEVEL="-<%= @chkwarninghours %> hour"
 ERROR_LEVEL="-<%= @chkcriticalhours %> hour"
 MAX_JOB_RUNTIME="-<%= @chkmaxruntimehours %> hour"
+HOST=`hostname`
 
 ### --- LOGIC --- ###
 
@@ -28,12 +29,12 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     MAX=`date +%s -d "$MAX_JOB_RUNTIME"`
     if [ "$MAX" -gt  "$CUR" ] ; then
         echo "ERROR: backup job is runnig longer than $MAX_JOB_RUNTIME"
-	exit 2
+    exit 2
     fi
 fi
 
 # check if backup has been made
-RESTIC_OUTPUT=`$RUN_RESTIC snapshots 2>&1`
+RESTIC_OUTPUT=`$RUN_RESTIC snapshots -H $HOST 2>&1`
 NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep "^0\ snapshots" | wc -l`
 
 echo $RESTIC_OUTPUT | grep -q "The AWS Access Key"
@@ -55,7 +56,7 @@ fi
 
 
 # check if last backup is long time ago.
-LAST_BACKUP=`$RUN_RESTIC snapshots --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
+LAST_BACKUP=`$RUN_RESTIC snapshots -H $HOST --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
 LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
 PREV_TIME_BACKUP_WARN=`date +%s -d "$WARNING_LEVEL"`
 PREV_TIME_BACKUP_ERROR=`date +%s -d "$ERROR_LEVEL"`
@@ -72,5 +73,3 @@ fi
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup is ok"
 exit 0
-
-OB
