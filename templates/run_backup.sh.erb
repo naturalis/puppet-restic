@@ -26,14 +26,15 @@ if [ "$NUM_OF_PROC" = "1" ]; then
 fi
 
 # check if backup has been made
-NUM_OF_BACKUP=`$RUN_RESTIC snapshots | grep ^0\ snapshots | wc -l`
-
+NUM_OF_BACKUP=`$RUN_RESTIC snapshots -H $HOST | grep "snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
-    echo "Initializing Repo"
+    echo "Initializing Repo and order to create backup"
     $RUN_RESTIC init
-    NUM_OF_BACKUP=`$RUN_RESTIC snapshots | grep ^0\ snapshots | wc -l`
+    BACKUP_NEEDED=1
 fi
 
+# check if repo is initialised but no backups are ever made.
+NUM_OF_BACKUP=`echo $NUM_OF_BACKUP | grep "^0\ snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "1" ] ; then
     echo "No backups made"
     BACKUP_NEEDED=1
@@ -41,7 +42,7 @@ fi
 
 # check if backup is needed since yesterday
 if [ "$BACKUP_NEEDED" -eq 0 ] ; then
-   LAST_BACKUP=`$RUN_RESTIC snapshots --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
+   LAST_BACKUP=`$RUN_RESTIC snapshots -H $HOST --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
    LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
    PREV_TIME_BACKUP=`date +%s -d "$TIME_BETWEEN_BACKUP"`
    if [ "$PREV_TIME_BACKUP" -gt "$LAST_BACKUP_EPOCH" ]; then

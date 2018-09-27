@@ -34,7 +34,7 @@ fi
 
 # check if backup has been made
 RESTIC_OUTPUT=`$RUN_RESTIC snapshots 2>&1`
-NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep ^0\ snapshots | wc -l`
+NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep "^0\ snapshots" | wc -l`
 
 echo $RESTIC_OUTPUT | grep -q "The AWS Access Key"
 if [ $? -eq 0 ];then
