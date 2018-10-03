@@ -6,11 +6,14 @@ class restic::sambabackup(
 ){
 
 # Create samba directory in backuprootfolder
-  file {"${restic::backuprootfolder}/samba":
-    ensure                  => 'directory',
-    mode                    => '0700',
-    require                 => File[$restic::backuprootfolder]
+  if ($restic::ensure_backuprootfolder == true ) {
+    file {"${restic::backuprootfolder}/samba":
+      ensure                  => 'directory',
+      mode                    => '0700',
+      require                 => File[$restic::backuprootfolder]
+    }
   }
+
 
 # create samba backup script from template
   file {"${restic::restic_path}/sambabackup.sh":

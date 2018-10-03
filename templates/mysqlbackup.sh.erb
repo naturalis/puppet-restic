@@ -10,45 +10,49 @@
 #
 ##### START CONFIG ###################################################
 
-USER=<%= scope.lookupvar('restic::mysqlbackupuser') %>
-PASS=<%= scope.lookupvar('restic::mysqlbackuppassword') %>
-DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/mysql
+# point to file with credentials for mysql and mysqldump
+DEFAULTS_EXTRA_FILE=<%= scope.lookupvar('restic::restic_path') %>/mysqlpasswd
 PREFIX=mysql
+
+# exclude system db's if requested
+#<% if scope.lookupvar('restic::mysqlexcludesystemdb') == true -%>
+#FILTER='| grep -vwe ("information_schema|mysql|performance_schema") '
+#<% end -%>
+
+# Create mysql backup directory if needed
+DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/mysql
+mkdir -p $DIR
+
+# Use docker-compose if requested
 <% if scope.lookupvar('restic::docker_compose') == true -%>
 CMD="cd scope.lookupvar('restic::docker_compose_dir') && docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD=""
 <% end -%>
 
-
-
 ##### STOP CONFIG ####################################################
 PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 set -o pipefail
 
-<% if scope.lookupvar('restic::mysqlbackuppassword') != "" -%>"
-  PASS="-p${PASS}"
-<% end -%>
-
 <% if scope.lookupvar('restic::mysqlalldatabases') == true -%>
   <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
-    ${CMD} mysql -u${USER} ${PASS} -s -r -N -e 'SHOW DATABASES' | while read dbname
+    ${CMD} mysql --defaults-extra-file=${DEFAULTS_EXTRA_FILE} -s -r -N -e 'SHOW DATABASES' 2>>/var/log/restic/prebackup.log ${FILTER} | while read dbname
     do
-    ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction \
+    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction \
       ${EVENTS} \
-      ${dbname} | gzip -c > ${DIR}/${PREFIX}_${dbname}.sql.gz
+      ${dbname} 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}_${dbname}.sql.gz
     done
   <% else -%>
-    ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --all-databases | gzip -c > ${DIR}/${PREFIX}.sql.gz
+    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --all-databases 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
   <% end -%>
 <% else -%>
   <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
     <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%>
-      ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --databases <%=db %> | gzip -c > ${DIR}/${PREFIX}_<%=db %>.sql.gz
+      ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <%=db %> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}_<%=db %>.sql.gz
     <% end -%>
   <% else -%>
-    ${CMD} mysqldump -u${USER} ${PASS} --opt --flush-logs --single-transaction --databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%=db %> <% end -%> | gzip -c > ${DIR}/${PREFIX}.sql.gz
+    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%=db %> <% end -%> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
   <% end -%>
 <% end -%>
 

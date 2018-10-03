@@ -25,10 +25,12 @@ class restic(
   Boolean $pgsqlprebackupvacuum     = false,
   Boolean $cron                     = false,
   $mysqldatabasearray               = ['db1', 'db2'],
+  Boolean $mysqlexcludesystemdb     = false,
   $pgsqlbackupuser                  = 'postgres',
   Boolean $pgsqlalldatabases        = false,
   $pgsqldatabasearray               = ['db1', 'db2'],
   $backuprootfolder                 = '/var/backup',
+  Boolean $ensure_backrootfolder    = true,
   $mysqlbackupuser                  = 'backupuser',
   $mysqlbackuppassword              = 'backupuserpwd',
   Boolean $mysqlalldatabases        = false,
@@ -61,6 +63,7 @@ class restic(
                                       '/.*',
                                       '/initrd.*',
                                       '/vmlinuz.*',
+                                      '/vmlinuz',
                                       '/usr',
                                      ],
   Boolean $docker_compose           = false,
@@ -90,9 +93,12 @@ class restic(
   }
 
 # Create backup location for database dumps or other script related dumps
-  file { $backuprootfolder:
-    ensure                  => 'directory',
-    mode                    => '0700'
+  if ($ensure_backuprootfolder == true ) {
+    file { 'backup root folder':
+      ensure                  => 'directory',
+      mode                    => '0700',
+      path                    => $backuprootfolder
+    }
   }
 
 # include class and sambascript with sambabackup=true
@@ -121,7 +127,7 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
 
 # Create backupscript from template
   if ($pre_command_array != '') {
-    $pre_backup_script = "${restic_path}/prebackup.sh"
+    $pre_backup_script_command = "${restic_path}/prebackup.sh 2>&1 >> /var/log/restic/prebackup.log"
     file {"${restic_path}/prebackup.sh":
       ensure                  => 'file',
       mode                    => '0700',
@@ -177,7 +183,7 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
 # Create restic cronjob
   if ($cron == true){
     cron { 'initiate backup':
-      command => "${restic_path}/run_backup.sh >> /var/log/restic/cron.log",
+      command => "${restic_path}/run_backup.sh 2>&1 >> /var/log/restic/cron.log",
       user    => root,
       hour    => $cronhour,
       minute  => $cronminute
@@ -240,7 +246,7 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
 
 
 # export check so sensu monitoring can make use of it
-  @@sensu::check { 'Check Backup' :
+  @@sensu::check { 'Check Restic Backup' :
     command => "sudo ${restic_path}/chkrestic.sh",
     tag     => 'central_sensu',
   }

@@ -18,6 +18,14 @@ if [ ! -f $PASSWORD_FILE ]; then
     exit 1
 fi
 
+# check if prebackup process is running
+NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
+if [ "$NUM_OF_PROC" = "1" ]; then
+    echo "Restic prebackup process still running. exiting"
+    ps aux | grep prebackup.sh | grep -v grep | awk '{print "Started at: "$9 " || Running for: " $10}'
+    exit 0
+fi
+
 # check if backup process is running
 NUM_OF_PROC=`ps aux | grep restic | grep backup | wc -l`
 if [ "$NUM_OF_PROC" = "1" ]; then
@@ -26,8 +34,17 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     exit 0
 fi
 
+# check if burp backup process is running
+NUM_OF_PROC=`ps aux | grep burp | grep -v grep | wc -l`
+if [ "$NUM_OF_PROC" = "1" ]; then
+    echo "Burp backup process still running. exiting"
+    ps aux | grep burp | awk '{print "Started at: "$9 " || Running for: " $10}'
+    exit 0
+fi
+
+
 # check if backup has been made
-SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST | grep "snapshots"`
+SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
 
 NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
@@ -37,7 +54,7 @@ if [ "$NUM_OF_BACKUP" = "0" ] ; then
 fi
 
 # check if repo is initialised but no backups are ever made.
-NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "^0\ snapshots" | wc -l`
+NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep " 0\ snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "1" ] ; then
     echo "No backups made"
     BACKUP_NEEDED=1
@@ -55,7 +72,11 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
 fi
 
 if [ "$BACKUP_NEEDED" -eq 1 ] ; then
-  <%= @pre_backup_script %>
+  <%= @pre_backup_script_command %>
+  if [ $? = "1" ] ; then
+    echo "Error in prebackup, check /var/log/restic/prebackup.log"
+    exit 2
+  fi
   $RUN_RESTIC backup $BACKUP_PATH --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required"

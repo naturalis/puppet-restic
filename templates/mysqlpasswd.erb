@@ -1,0 +1,7 @@
+[mysqldump]
+user=<%= scope.lookupvar('restic::mysqlbackupuser') %>
+password=<%= scope.lookupvar('restic::mysqlbackuppassword') %>
+
+[mysql]
+user=<%= scope.lookupvar('restic::mysqlbackupuser') %>
+password=<%= scope.lookupvar('restic::mysqlbackuppassword') %>

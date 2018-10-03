@@ -5,11 +5,14 @@
 class restic::pgsqlbackup(
 ){
 
-# create mysql directory in backuprootfolder
-  file {"${restic::backuprootfolder}/pgsql":
-    ensure                  => 'directory',
-    mode                    => '0700',
-    require                 => File[$restic::backuprootfolder]
+# create pgsql directory in backuprootfolder
+  if ($restic::ensure_backuprootfolder == true ) {
+    file { "pgSQL folder in backup root":
+      ensure                  => 'directory',
+      mode                    => '0700',
+      path                    => "${restic::backuprootfolder}/pgsql",
+      require                 => File[$restic::backuprootfolder]
+    }
   }
 
 # Create pqsql backup script

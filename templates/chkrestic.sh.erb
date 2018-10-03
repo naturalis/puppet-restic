@@ -21,6 +21,9 @@ if [ ! -f $PASSWORD_FILE ]; then
     exit 2
 fi
 
+
+
+
 # check if backup process is running
 NUM_OF_PROC=`ps aux | grep restic | grep backup | wc -l`
 if [ "$NUM_OF_PROC" = "1" ]; then
@@ -33,9 +36,21 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     fi
 fi
 
+# check if prebackup process is running
+NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
+if [ "$NUM_OF_PROC" = "1" ]; then
+    SINCE=`ps aux | grep restic | grep -v grep | awk '{print $9}'`
+    CUR=`date +%s -d "$SINCE"`
+    MAX=`date +%s -d "$MAX_JOB_RUNTIME"`
+    if [ "$MAX" -gt  "$CUR" ] ; then
+        echo "ERROR: prebackup job is runnig longer than $MAX_JOB_RUNTIME"
+    exit 2
+    fi
+fi
+
 # check if backup has been made
 RESTIC_OUTPUT=`$RUN_RESTIC snapshots -H $HOST 2>&1`
-NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep "^0\ snapshots" | wc -l`
+NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep " 0\ snapshots" | wc -l`
 
 echo $RESTIC_OUTPUT | grep -q "The AWS Access Key"
 if [ $? -eq 0 ];then
