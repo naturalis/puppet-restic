@@ -2,60 +2,103 @@
 #
 # MySQL Backup Script
 #  Dumps mysql databases to a file for another backup tool to pick up.
+#  Extra options for working with databases in docker containers
 #
-# MySQL code:
-# GRANT SELECT, RELOAD, LOCK TABLES ON *.* TO 'user'@'localhost'
-# IDENTIFIED BY 'password';
-# FLUSH PRIVILEGES;
+#
 #
 ##### START CONFIG ###################################################
 
 # point to file with credentials for mysql and mysqldump
-DEFAULTS_EXTRA_FILE=<%= scope.lookupvar('restic::restic_path') %>/mysqlpasswd
+DEFAULTS_EXTRA_FILE="--defaults-extra-file=<%= scope.lookupvar('restic::restic_path') %>/mysqlpasswd"
 PREFIX=mysql
-
-# exclude system db's if requested
-#<% if scope.lookupvar('restic::mysqlexcludesystemdb') == true -%>
-#FILTER='| grep -vwe ("information_schema|mysql|performance_schema") '
-#<% end -%>
-
-# Create mysql backup directory if needed
+PATH=/usr/bin:/usr/sbin:/bin:/sbin:/usr/local/bin
+# Define and Create mysql backup directory if needed
 DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/mysql
 mkdir -p $DIR
 
-# Use docker-compose if requested
-<% if scope.lookupvar('restic::docker_compose') == true -%>
-CMD="cd scope.lookupvar('restic::docker_compose_dir') && docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
+# Use docker if requested
+<% if scope.lookupvar('restic::docker') == true -%>
+   # inject password config file
+   docker cp <%= scope.lookupvar('restic::restic_path') %>/mysqlpasswd <%= scope.lookupvar('restic::docker_container') %>:/etc/mysql/conf.d/resticbackup.cnf
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected adding password config file in docker container"
+          exit 1
+      fi
+
+   # config will be readed by default, defaults extra file may be empty  
+   DEFAULTS_EXTRA_FILE=""
+
+   # use docker exec before each command. 
+   CMD="docker exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD=""
 <% end -%>
 
 ##### STOP CONFIG ####################################################
-PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 set -o pipefail
 
+<% if scope.lookupvar('restic::mysqlshowcompatibility56') == true -%>
+  outputmessage=`${CMD} mysql ${DEFAULTS_EXTRA_FILE} -s -r -N -e 'set @@global.show_compatibility_56=ON;' 2>&1`
+  if [ $? -eq 1 ]
+    then
+      echo 'Error turning on compatibility mode, error:'
+      echo $outputmessage
+      exit 1
+  fi
+<% end -%>
+
 <% if scope.lookupvar('restic::mysqlalldatabases') == true -%>
   <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
-    ${CMD} mysql --defaults-extra-file=${DEFAULTS_EXTRA_FILE} -s -r -N -e 'SHOW DATABASES' 2>>/var/log/restic/prebackup.log ${FILTER} | while read dbname
+    ${CMD} mysql ${DEFAULTS_EXTRA_FILE} -s -r -N -e 'SHOW DATABASES' | while read dbname
     do
-    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction \
+    ${CMD} mysqldump ${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction \
       ${EVENTS} \
-      ${dbname} 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}_${dbname}.sql.gz
+      ${dbname} | gzip -c > ${DIR}/${PREFIX}_${dbname}.sql.gz
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected dumping ${dbname}"
+          exit 1
+      fi
     done
   <% else -%>
-    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --all-databases 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
+    ${CMD} mysqldump ${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --all-databases 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected dumping all-databases"
+          exit 1
+      fi
   <% end -%>
 <% else -%>
   <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
     <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%>
-      ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <%=db %> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}_<%=db %>.sql.gz
+      ${CMD} mysqldump ${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <%=db %> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}_<%=db %>.sql.gz
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected dumping <%=db %>"
+          exit 1
+      fi
     <% end -%>
   <% else -%>
-    ${CMD} mysqldump --defaults-extra-file=${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%=db %> <% end -%> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
+    ${CMD} mysqldump ${DEFAULTS_EXTRA_FILE} --opt --flush-logs --single-transaction --databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%=db %> <% end -%> 2>>/var/log/restic/prebackup.log | gzip -c 2>>/var/log/restic/prebackup.log > ${DIR}/${PREFIX}.sql.gz
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected dumping <%=db %>"
+          exit 1
+      fi
   <% end -%>
 <% end -%>
 
+ # clean up password config file inside docker container
+<% if scope.lookupvar('restic::docker') == true -%>
+   docker exec <%= scope.lookupvar('restic::docker_container') %> rm /etc/mysql/conf.d/resticbackup.cnf
+      if [ $? -eq 1 ]
+        then
+          echo "Error detected removing password config file in docker container"
+          exit 1
+      fi
+<% end -%>
 
 
 

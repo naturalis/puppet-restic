@@ -8,8 +8,8 @@
 USER=<%= scope.lookupvar('restic::pgsqlbackupuser') %>
 DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/pgsql
 PREFIX=pgsql
-<% if scope.lookupvar('restic::docker_compose') == true -%>
-CMD="cd scope.lookupvar('restic::docker_compose_dir') && docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
+<% if scope.lookupvar('restic::docker') == true -%>
+CMD="docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD="su - ${USER} -c "
 chown -R ${USER}:root <%= scope.lookupvar('restic::backuprootfolder') %>

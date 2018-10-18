@@ -31,7 +31,7 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     CUR=`date +%s -d "$SINCE"`
     MAX=`date +%s -d "$MAX_JOB_RUNTIME"`
     if [ "$MAX" -gt  "$CUR" ] ; then
-        echo "ERROR: backup job is runnig longer than $MAX_JOB_RUNTIME"
+        echo "ERROR: backup job is running longer than $MAX_JOB_RUNTIME"
     exit 2
     fi
 fi
@@ -39,11 +39,11 @@ fi
 # check if prebackup process is running
 NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
 if [ "$NUM_OF_PROC" = "1" ]; then
-    SINCE=`ps aux | grep restic | grep -v grep | awk '{print $9}'`
+    SINCE=`ps aux | grep prebackup.sh | grep -v grep | awk '{print $9}'`
     CUR=`date +%s -d "$SINCE"`
     MAX=`date +%s -d "$MAX_JOB_RUNTIME"`
     if [ "$MAX" -gt  "$CUR" ] ; then
-        echo "ERROR: prebackup job is runnig longer than $MAX_JOB_RUNTIME"
+        echo "ERROR: prebackup job is running longer than $MAX_JOB_RUNTIME"
     exit 2
     fi
 fi

@@ -35,8 +35,10 @@ class restic(
   $mysqlbackuppassword              = 'backupuserpwd',
   Boolean $mysqlalldatabases        = false,
   Boolean $mysqlfileperdatabase     = true,
+  Boolean $mysqlshowcompatibility56 = true,
   $pre_command                      = undef,
-  $cronminute                       = '*/20',
+  $cronminute                       = '*/20', # cronminute is ignored then $cronrandom is true
+  Boolean $cronrandom               = true,
   $cronhour                         = '*',
   $exclude_list                     = [
                                       '/bin',
@@ -66,9 +68,8 @@ class restic(
                                       '/vmlinuz',
                                       '/usr',
                                      ],
-  Boolean $docker_compose           = false,
-  $docker_compose_dir               = "/opt/docker_compose-dir",
-  $docker_container                 = "db",
+  Boolean $docker                   = false,
+  $docker_container                 = "dockerapp_db_1",
 
 # restore options
   $resticrestorecname               = undef,
@@ -180,13 +181,20 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
     mode                    => '0700'
   }
 
+# set random minute if cronrandom=true, this implies hourly backups. 
+  if ($cronrandom == true){
+     $_cronminute = fqdn_rand(59)
+  } else {
+     $_cronminute = $cronminute
+  }
+
 # Create restic cronjob
   if ($cron == true){
     cron { 'initiate backup':
       command => "${restic_path}/run_backup.sh 2>&1 >> /var/log/restic/cron.log",
       user    => root,
       hour    => $cronhour,
-      minute  => $cronminute
+      minute  => $_cronminute
     }
   }
 

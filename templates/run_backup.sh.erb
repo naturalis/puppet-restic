@@ -72,11 +72,12 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
 fi
 
 if [ "$BACKUP_NEEDED" -eq 1 ] ; then
-  <%= @pre_backup_script_command %>
+  <%= @pre_backup_script_command %> 
   if [ $? = "1" ] ; then
     echo "Error in prebackup, check /var/log/restic/prebackup.log"
     exit 2
   fi
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
   $RUN_RESTIC backup $BACKUP_PATH --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required"
