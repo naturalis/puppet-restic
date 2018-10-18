@@ -86,5 +86,5 @@ if [ "$PREV_TIME_BACKUP_WARN" -gt "$LAST_BACKUP_EPOCH" ]; then
     exit 1
 fi
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup is ok"
+echo "$(date '+%Y-%m-%d %H:%M:%S') -- last backup was ${LAST_BACKUP} -- Backup is ok"
 exit 0
