@@ -27,7 +27,7 @@ class restic(
   $mysqldatabasearray               = ['db1', 'db2'],
   $mysqlexcludesystemdb             = false,
   $pgsqlbackupuser                  = 'postgres',
-  $pgsqlalldatabases                = false,
+  $pgsqlalldatabases                = true,
   $pgsqldatabasearray               = ['db1', 'db2'],
   $backuprootfolder                 = '/var/backup',
   $ensure_backrootfolder            = true,
@@ -35,6 +35,7 @@ class restic(
   $mysqlbackuppassword              = 'backupuserpwd',
   $mysqlalldatabases                = false,
   $mysqlfileperdatabase             = true,
+  $mysqlshowcompatibility56         = true,
   $pre_command                      = undef,
   $cronminute                       = '*/20', # cronminute is ignored then $cronrandom is true
   $cronrandom                       = true,
@@ -67,10 +68,8 @@ class restic(
                                       '/vmlinuz',
                                       '/usr',
                                      ],
-
+  $docker                           = false,
   $docker_container                 = "dockerapp_db_1",
-  $docker_compose                   = false,
-  $docker_compose_dir               = "/opt/docker_compose-dir",
 
 # restore options
   $resticrestorecname               = undef,
