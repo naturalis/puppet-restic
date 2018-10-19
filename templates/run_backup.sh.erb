@@ -27,7 +27,7 @@ if [ $NUM_OF_PROC -gt 0 ]; then
 fi
 
 # check if backup process is running
-NUM_OF_PROC=`ps aux | grep restic | grep backup | wc -l`
+NUM_OF_PROC=`ps aux | grep restic | grep backup | grep -v run_backup | wc -l`
 if [ $NUM_OF_PROC -gt 0 ]; then
     echo "Restic backup process still running. exiting"
     ps aux | grep restic | grep backup | awk '{print "Started at: "$9 " || Running for: " $10}'
