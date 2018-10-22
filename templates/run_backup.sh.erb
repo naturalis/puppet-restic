@@ -20,7 +20,7 @@ fi
 
 # check if prebackup process is running
 NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
-if [ $NUM_OF_PROC -gt 0 ]; then
+if [ "$NUM_OF_PROC" != "0" ]; then
     echo "Restic prebackup process still running. exiting"
     ps aux | grep prebackup.sh | grep -v grep | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
@@ -28,7 +28,7 @@ fi
 
 # check if backup process is running
 NUM_OF_PROC=`ps aux | grep restic | grep backup | grep -v run_backup | wc -l`
-if [ $NUM_OF_PROC -gt 0 ]; then
+if [ "$NUM_OF_PROC" != "0" ]; then
     echo "Restic backup process still running. exiting"
     ps aux | grep restic | grep backup | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
