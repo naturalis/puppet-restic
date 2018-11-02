@@ -79,7 +79,12 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
   fi
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
   $RUN_RESTIC backup $BACKUP_PATH --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
+  if [ $? = "0" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup succeeded."
+  else
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
+  fi
 else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required, Last backup was $LAST_BACKUP"
 fi
 
