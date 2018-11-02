@@ -1,28 +1,11 @@
 #!/usr/bin/env bash
 
-# ADD Lock check
-source <%= @restic_path %>/config.sh
-
 WARNING_LEVEL="-<%= @chkwarninghours %> hour"
 ERROR_LEVEL="-<%= @chkcriticalhours %> hour"
 MAX_JOB_RUNTIME="-<%= @chkmaxruntimehours %> hour"
 HOST=`hostname`
 
 ### --- LOGIC --- ###
-
-export AWS_ACCESS_KEY_ID="$AWS_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="$AWS_SECRET_ACCESS_KEY"
-
-RUN_RESTIC="$RESTIC_BIN --repo $REPO --password-file $PASSWORD_FILE --limit-upload $UPLOAD_LIMIT_KiB"
-
-# check if password file exists
-if [ ! -f $PASSWORD_FILE ]; then
-    echo "ERROR: Password file $PASSWORD_FILE not found!"
-    exit 2
-fi
-
-
-
 
 # check if backup process is running
 NUM_OF_PROC=`ps aux | grep restic | grep backup | wc -l`
@@ -48,33 +31,23 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     fi
 fi
 
-# check if backup has been made
-RESTIC_OUTPUT=`$RUN_RESTIC snapshots -H $HOST 2>&1`
-NUM_OF_BACKUP=`echo $RESTIC_OUTPUT | grep " 0\ snapshots" | wc -l`
-
-echo $RESTIC_OUTPUT | grep -q "The AWS Access Key"
-if [ $? -eq 0 ];then
-    echo "AWS Access credentials are incorrect"
-    exit 2
-fi
-
-echo $RESTIC_OUTPUT | grep -q "Is there a repository at the following location"
-if [ $? -eq 0 ];then
-    echo "Repository ${REPO} not found"
-    exit 2
-fi
-
-if [ "$NUM_OF_BACKUP" = "1" ] ; then
-    echo "ERROR: no backups have been made"
-    exit 2
-fi
-
-
 # check if last backup is long time ago.
-LAST_BACKUP=`$RUN_RESTIC snapshots -H $HOST --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
+LAST_BACKUP=`tail /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup succeeded' | head -n 1 | awk -F '--' '{print $1}'`
+LAST_BACKUP_FAILED=`tail /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup failed' | head -n 1 | awk -F '--' '{print $1}'`
 LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
+LAST_BACKUP_FAILED_EPOCH=`date +%s -d "$LAST_BACKUP_FAILED"`
 PREV_TIME_BACKUP_WARN=`date +%s -d "$WARNING_LEVEL"`
 PREV_TIME_BACKUP_ERROR=`date +%s -d "$ERROR_LEVEL"`
+
+if [ "$LAST_BACKUP" = "" ]; then
+    echo "ERROR: No backup entries succeeded or failed are found in the logs"
+    exit 2
+fi
+
+if [ "$LAST_BACKUP_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ]; then
+    echo "ERROR: Last backup ended in failed stat, so backup needed. Last backup was $LAST_BACKUP"
+    exit 2
+fi
 
 if [ "$PREV_TIME_BACKUP_ERROR" -gt "$LAST_BACKUP_EPOCH" ]; then
     echo "ERROR: No backup since $ERROR_LEVEL, so backup needed. Last backup was $LAST_BACKUP"
