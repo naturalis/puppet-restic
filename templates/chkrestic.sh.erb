@@ -32,8 +32,8 @@ if [ "$NUM_OF_PROC" = "1" ]; then
 fi
 
 # check if last backup is long time ago.
-LAST_BACKUP=`tail /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup succeeded' | head -n 1 | awk -F '--' '{print $1}'`
-LAST_BACKUP_FAILED=`tail /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup failed' | head -n 1 | awk -F '--' '{print $1}'`
+LAST_BACKUP=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup succeeded' | tail -n 1 | awk -F '--' '{print $1}'`
+LAST_BACKUP_FAILED=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup failed' | tail -n 1 | awk -F '--' '{print $1}'`
 LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
 LAST_BACKUP_FAILED_EPOCH=`date +%s -d "$LAST_BACKUP_FAILED"`
 PREV_TIME_BACKUP_WARN=`date +%s -d "$WARNING_LEVEL"`
@@ -44,7 +44,7 @@ if [ "$LAST_BACKUP" = "" ]; then
     exit 2
 fi
 
-if [ "$LAST_BACKUP_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ]; then
+if [ "$LAST_BACKUP_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ] && [ "$LAST_BACKUP_FAILED" != "" ]; then
     echo "ERROR: Last backup ended in failed stat, so backup needed. Last backup was $LAST_BACKUP"
     exit 2
 fi
