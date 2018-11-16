@@ -13,6 +13,8 @@ class restic(
   $restic_binary                    = 'restic_0.9.2_linux_amd64',
   $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.2/restic_0.9.2_linux_amd64.bz2',
   $restic_pre_command               = '',
+  $restic_keep_last                 = 60,       # restic forget options
+  $restic_keep_within_duration      = '60d',    # restic forget options
 
 # default check options
   $chkwarninghours                  = 24,
