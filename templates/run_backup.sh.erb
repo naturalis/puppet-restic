@@ -86,7 +86,7 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
   if [ $? = "0" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup succeeded."
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
-    $RUN_RESTIC forget --keep-last $KEEPLAST --keep-within $KEEPWITHDURATION 2>&1 >> /var/log/restic/restic.log
+    $RUN_RESTIC forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
   else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
   fi
