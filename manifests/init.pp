@@ -79,6 +79,7 @@ class restic(
   $restorecronminute                = '0',
   $restorecronhour                  = '5',
   $restorecronweekday               = '0',
+  $restorecronmonthday              = '*',
 
 )
 {

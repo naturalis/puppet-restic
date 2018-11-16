@@ -25,7 +25,8 @@ class restic::restore
       user    => root,
       hour    => $restic::restorecronhour,
       minute  => $restic::restorecronminute,
-      weekday => $restic::restorecronweekday
+      weekday => $restic::restorecronweekday,
+      monthday => $restic::restorecronmonthday
     }
   }
 }
