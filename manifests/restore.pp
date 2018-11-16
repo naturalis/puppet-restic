@@ -19,7 +19,7 @@ class restic::restore
   }
 
 # install restore cron if true
- if ($restic::restorecron == 'true'){
+ if ($restic::restorecron == true){
     cron { 'initiate restore':
       command => "${restic::restic_path}/restore.sh",
       user    => root,
