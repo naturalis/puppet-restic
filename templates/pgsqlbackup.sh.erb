@@ -14,7 +14,7 @@ DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/pgsql
 mkdir -p $DIR
 
 <% if scope.lookupvar('restic::docker') == true -%>
-CMD="docker-compose exec <%= scope.lookupvar('restic::docker_container') %>"
+CMD="docker exec <%= scope.lookupvar('restic::docker_container') %>"
 <% else -%>
 CMD="su - ${USER} -c "
 chown -R ${USER}:root <%= scope.lookupvar('restic::backuprootfolder') %>

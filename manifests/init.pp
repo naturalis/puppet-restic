@@ -13,32 +13,30 @@ class restic(
   $restic_binary                    = 'restic_0.9.2_linux_amd64',
   $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.2/restic_0.9.2_linux_amd64.bz2',
   $restic_pre_command               = '',
-  $chkwarninghours                  = 28,
+
+# default check options
+  $chkwarninghours                  = 24,
   $chkcriticalhours                 = 48,
   $chkmaxruntimehours               = 48,
 
 # backup options
-  $mysqlrestore                     = false,
   $mysqlbackup                      = false,
   $sambabackup                      = false,
   $pgsqlbackup                      = false,
   $pgsqlprebackupvacuum             = false,
   $cron                             = false,
   $mysqldatabasearray               = ['db1', 'db2'],
-  $mysqlexcludesystemdb             = false,
   $pgsqlbackupuser                  = 'postgres',
   $pgsqlalldatabases                = true,
   $pgsqldatabasearray               = ['db1', 'db2'],
   $backuprootfolder                 = '/var/backup',
-  $ensure_backrootfolder            = true,
   $mysqlbackupuser                  = 'backupuser',
   $mysqlbackuppassword              = 'backupuserpwd',
-  $mysqlalldatabases                = false,
+  $mysqlalldatabases                = true,
   $mysqlfileperdatabase             = true,
-  $mysqlshowcompatibility56         = true,
-  $pre_command                      = undef,
+  $mysqlshowcompatibility56         = true,   # needed for most mysql install on ubuntu 16.04LTS
   $cronminute                       = '*/20', # cronminute is ignored then $cronrandom is true
-  $cronrandom                       = true,
+  $cronrandom                       = true,   # randomize minute 0-59 for spreading backups every hour
   $cronhour                         = '*',
   $exclude_list                     = [
                                       '/bin',
@@ -72,11 +70,9 @@ class restic(
   $docker_container                 = "dockerapp_db_1",
 
 # restore options
-  $resticrestorecname               = undef,
-  $pgsqlrestore                     = false,
   $restorescript                    = false,
   $restorefromclient                = undef,
-  $restoresource                    = 'restic',
+  $restoreinclude                   = '/var/backup',
   $post_restore_command             = '',
   $pre_restore_command              = '',
   $restorecron                      = false,
@@ -91,15 +87,6 @@ class restic(
   file { $restic_path:
     ensure                  => 'directory',
     mode                    => '0700'
-  }
-
-# Create backup location for database dumps or other script related dumps
-  if ($ensure_backuprootfolder == true ) {
-    file { 'backup root folder':
-      ensure                  => 'directory',
-      mode                    => '0700',
-      path                    => $backuprootfolder
-    }
   }
 
 # include class and sambascript with sambabackup=true
@@ -135,7 +122,6 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
       content                 => template('restic/prebackup.sh.erb')
     }
   }
-
 
 # include restic class
   exec { 'install restic':
@@ -235,6 +221,12 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
     ensure                  => link,
     target                  => "${restic_path}/run_restic.sh",
     require                 => File["${restic_path}/run_restic.sh"]
+  }
+
+
+# add restore script to /usr/local/sbin/restore.sh when restorescript = true
+  if ($restic::restorescript == true){
+    class { 'restic::restore': }
   }
 
 

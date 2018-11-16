@@ -1,0 +1,80 @@
+#!/bin/bash
+#
+# Restore Script 
+#
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
+service cron stop
+
+<%= scope.lookupvar('restic::pre_restore_command') -%>
+
+
+<%= @_restore_command -%>
+
+<% if scope.lookupvar('restic::mysqlrestore') == true %>
+USER=<%= scope.lookupvar('restic::@mysqlbackupuser') %>
+PASS=<%= scope.lookupvar('restic::@mysqlbackuppassword') %>
+DIR=<%= scope.lookupvar('restic::@backuprootfolder') %>/mysql
+PREFIX=mysql
+
+echo "-----------------------------------------------------"
+read -p "Press enter to start mysql import"
+<% if scope.lookupvar('restic::mysqlalldatabases') == true -%>
+  <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
+    for i in ${DIR}/${PREFIX}_* ; do
+      db=${i/${DIR}\/${PREFIX}_/}
+      db=${db/.sql.gz/}
+      echo "Currently importing db: ${db}"
+      mysql -u${USER} -p${PASS} -e "CREATE DATABASE IF NOT EXISTS ${db}"
+      gunzip < $i | mysql -u${USER} -p${PASS} ${db}
+    done
+  <% else -%>
+      echo "Importing all mysqldatabases"
+      gunzip < ${DIR}/${PREFIX}.sql.gz | mysql -u${USER} -p${PASS}
+  <% end -%>
+<% else -%>
+  <% if scope.lookupvar('restic::mysqlfileperdatabase') == true -%>
+    <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%>
+      echo "Currently importing db: <%= db %>"
+      mysql -u${USER} -p${PASS} -e "CREATE DATABASE IF NOT EXISTS <%= db %>"
+      gunzip < ${DIR}/${PREFIX}_<%= db %>.sql.gz | mysql -u${USER} -p${PASS} <%= db %>
+    <% end -%>
+  <% else -%>
+    echo "Importing databases <% scope.lookupvar('restic::mysqldatabasearray').each do |db| -%><%= db %><% end -%> from single file"
+    gunzip < ${DIR}/${PREFIX}.sql.gz | mysql -u${USER} -p${PASS}
+  <% end -%>
+<% end -%>
+<% end -%>
+
+
+<% if scope.lookupvar('restic::pgsqlrestore') == true %>
+USER=<%= scope.lookupvar('restic::pgsqlbackupuser') %>
+DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/pgsql
+PREFIX=pgsql
+
+echo "-----------------------------------------------------"
+read -p "Press enter to start pgsql import"
+chown -R ${USER}:root /var/backup
+
+<% if scope.lookupvar('restic::pgsqlalldatabases') == true -%>
+      echo "Importing all pgsqldatabases"
+      su ${USER} -c "gunzip < ${DIR}/${PREFIX}.gz | psql postgres"
+<% else -%>
+    <% scope.lookupvar('restic::pgsqldatabasearray').each do |db| -%>
+      echo "Currently importing db: <%= db %>"
+      su ${USER} -c "pg_restore --dbname=<%= db %> ${DIR}/${PREFIX}_<%= db %>.dump"
+    <% end -%>
+<% end -%>
+cd ${DIR}
+cd ..
+chown -R root:root /var/backup
+<% end -%>
+
+<%= scope.lookupvar('restic::post_restore_command') -%>
+
+service cron start
+
+
+
+
+
+
