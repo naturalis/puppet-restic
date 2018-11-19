@@ -83,14 +83,21 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
   $RUN_RESTIC backup $BACKUP_PATH --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
 
+# report ok when backup succeeded and start forget action
   if [ $? = "0" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup succeeded."
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
     $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed forget action"
-    exit 2
-  fi
+    # when forget action fails then try again in 5 minutes, create warning state when failed for a second time. 
+    if [ $? = "1" ] ; then    
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed first try, waiting 5 minutes before 2nd try."
+      sleep 5m
+      $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+      if [ $? = "1" ] ; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed to run forget actions"
+        exit 1
+      fi
+    fi
   else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
   fi
