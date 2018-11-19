@@ -17,14 +17,14 @@ KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
 
 # check if password file exists
 if [ ! -f $PASSWORD_FILE ]; then
-    echo "Password file $PASSWORD_FILE not found, exiting"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Password file $PASSWORD_FILE not found, exiting"
     exit 1
 fi
 
 # check if prebackup process is running
 NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
 if [ "$NUM_OF_PROC" != "0" ]; then
-    echo "Restic prebackup process still running. exiting"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Restic prebackup process still running. exiting"
     ps aux | grep prebackup.sh | grep -v grep | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
 fi
@@ -32,7 +32,7 @@ fi
 # check if backup process is running
 NUM_OF_PROC=`ps aux | grep restic | grep backup | grep -v run_backup | wc -l`
 if [ "$NUM_OF_PROC" != "0" ]; then
-    echo "Restic backup process still running. exiting"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Restic backup process still running. exiting"
     ps aux | grep restic | grep backup | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
 fi
@@ -40,7 +40,7 @@ fi
 # check if burp backup process is running
 NUM_OF_PROC=`ps aux | grep burp | grep -v grep | wc -l`
 if [ "$NUM_OF_PROC" = "1" ]; then
-    echo "Burp backup process still running. exiting"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Burp backup process still running. exiting"
     ps aux | grep burp | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
 fi
@@ -51,7 +51,7 @@ SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
 
 NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
-    echo "Initializing Repo and order to create backup"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Initializing Repo and order to create backup"
     $RUN_RESTIC init
     BACKUP_NEEDED=1
 fi
@@ -59,7 +59,7 @@ fi
 # check if repo is initialised but no backups are ever made.
 NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep " 0\ snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "1" ] ; then
-    echo "No backups made"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backups made"
     BACKUP_NEEDED=1
 fi
 
@@ -69,7 +69,7 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
    LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
    PREV_TIME_BACKUP=`date +%s -d "$TIME_BETWEEN_BACKUP"`
    if [ "$PREV_TIME_BACKUP" -gt "$LAST_BACKUP_EPOCH" ]; then
-       echo "No backup since $TIME_BETWEEN_BACKUP, so backup needed. Last backup was $LAST_BACKUP"
+       echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup since $TIME_BETWEEN_BACKUP, so backup needed. Last backup was $LAST_BACKUP"
        BACKUP_NEEDED=1
    fi
 fi
@@ -77,7 +77,7 @@ fi
 if [ "$BACKUP_NEEDED" -eq 1 ] ; then
   <%= @pre_backup_script_command %> 
   if [ $? = "1" ] ; then
-    echo "Error in prebackup, check /var/log/restic/prebackup.log"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Error in prebackup, check /var/log/restic/prebackup.log"
     exit 2
   fi
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
@@ -87,6 +87,10 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup succeeded."
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
     $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed forget action"
+    exit 2
+  fi
   else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
   fi
