@@ -90,7 +90,7 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
     $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
     # when forget action fails then try again in 5 minutes, create warning state when failed for a second time. 
     if [ $? = "1" ] ; then    
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed first try, waiting 5 minutes before 2nd try"
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action first try failed, waiting 5 minutes before 2nd try"
       sleep 5m
       $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
       if [ $? = "1" ] ; then
