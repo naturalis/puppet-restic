@@ -48,10 +48,21 @@ fi
 
 # check if backup has been made
 SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
-
 NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
+
+# when locked, wait and skip init. 
+if [[ $SNAPSHOT_CHECK =~ "unable to create lock in backend" ]] ; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Snapshot check returned lock in backend, waiting 5 minutes and unlocking before second try"
+  sleep 5m
+  $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
+  SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
+  if [[ $SNAPSHOT_CHECK =~ "unable to create lock in backend" ]] ; then
+     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Snapshot check 2nd try also returned lock in backend, exiting backup run"
+     exit 0
+  fi
+fi
+
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- snapshot check resulted $SNAPSHOT_CHECK"
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Initializing Repo and order to create backup"
     $RUN_RESTIC init
     BACKUP_NEEDED=1
@@ -69,7 +80,7 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
    LAST_BACKUP=`$RUN_RESTIC snapshots -H $HOST --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
    LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
    PREV_TIME_BACKUP=`date +%s -d "$TIME_BETWEEN_BACKUP"`
-   if [ "$PREV_TIME_BACKUP" -gt "$LAST_BACKUP_EPOCH" ]; then
+   if [ "$PREV_TIME_BACKUP" -gt "$LAST_BACKUP_EPOCH" ] ; then
        echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup since $TIME_BETWEEN_BACKUP, so backup needed. Last backup was $LAST_BACKUP"
        BACKUP_NEEDED=1
    fi
