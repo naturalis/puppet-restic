@@ -51,6 +51,7 @@ SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
 
 NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- snapshot check resulted $SNAPSHOT_CHECK"
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Initializing Repo and order to create backup"
     $RUN_RESTIC init
     BACKUP_NEEDED=1
@@ -81,7 +82,7 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
     exit 2
   fi
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
-  $RUN_RESTIC backup $BACKUP_PATH --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
+  $RUN_RESTIC backup $BACKUP_PATH --verbose --exclude-file=$EXCLUDE_FILE 2>&1 >> /var/log/restic/restic.log
 
 # report ok when backup succeeded and start forget action
   if [ $? = "0" ] ; then
