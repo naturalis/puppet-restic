@@ -17,7 +17,7 @@ class restic(
   $restic_keep_within_duration      = '60d',    # restic forget options
 
 # default check options
-  $chkwarninghours                  = 24,
+  $chkwarninghours                  = 26,
   $chkcriticalhours                 = 48,
   $chkmaxruntimehours               = 48,
 
