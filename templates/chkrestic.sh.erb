@@ -62,7 +62,7 @@ if [ "$PREV_TIME_BACKUP_ERROR" -gt "$LAST_BACKUP_EPOCH" ]; then
 fi
 
 if [ "$PREV_TIME_BACKUP_WARN" -gt "$LAST_BACKUP_EPOCH" ]; then
-    echo "WARNING: No backup since $ERROR_LEVEL, backup needed. Last backup was $LAST_BACKUP"
+    echo "WARNING: No backup since $WARNING_LEVEL, backup needed. Last backup was $LAST_BACKUP"
     exit 1
 fi
 
