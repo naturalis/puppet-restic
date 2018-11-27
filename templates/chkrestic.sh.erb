@@ -66,7 +66,7 @@ if [ "$PREV_TIME_BACKUP_WARN" -gt "$LAST_BACKUP_EPOCH" ]; then
     exit 1
 fi
 
-if [ "$LAST_FORGET_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ]; then
+if [ "$LAST_FORGET_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ] && [ "$LAST_FORGET_FAILED" != "" ]; then
     echo "WARNING: Last backup forget action ended in failed state."
     exit 1
 fi
