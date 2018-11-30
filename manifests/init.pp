@@ -13,6 +13,9 @@ class restic(
   $restic_binary                    = 'restic_0.9.2_linux_amd64',
   $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.2/restic_0.9.2_linux_amd64.bz2',
   $restic_pre_command               = '',
+  $restic_keep_prune_job            = true,
+  $restic_keep_prune_job_random     = true,    # if enabled a random hour will be taken in which a prune and forget job wil run instead of backup. 
+  $restic_keep_prune_job_hour       = 10,       # hour when random = false
   $restic_keep_last                 = 60,       # restic forget options
   $restic_keep_within_duration      = '60d',    # restic forget options
 
@@ -202,8 +205,13 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
     require                 => File["${restic_path}/chkrestic.sh"]
   }
 
-
 # create restic run script for backups using crontab
+  if ($restic_keep_prune_job_random == true){
+    $prune_hour = fqdn_rand(23)
+  } else {
+    $prune_hour = $restic_keep_prune_job_hour
+  }
+
   file { "${restic_path}/run_backup.sh":
     ensure                  => 'file',
     mode                    => '0700',

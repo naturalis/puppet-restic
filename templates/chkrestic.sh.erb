@@ -34,7 +34,7 @@ fi
 # check if last backup is long time ago.
 LAST_BACKUP=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup succeeded' | tail -n 1 | awk -F '--' '{print $1}'`
 LAST_BACKUP_FAILED=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup failed' | tail -n 1 | awk -F '--' '{print $1}'`
-LAST_FORGET_FAILED=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup forget action failed' | tail -n 1 | awk -F '--' '{print $1}'`
+LAST_FORGET_FAILED=`cat /var/log/restic/cron.log.1 /var/log/restic/cron.log 2>/dev/null | grep 'Backup prune and forget action failed' | tail -n 1 | awk -F '--' '{print $1}'`
 LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
 LAST_BACKUP_FAILED_EPOCH=`date +%s -d "$LAST_BACKUP_FAILED"`
 LAST_FORGET_FAILED_EPOCH=`date +%s -d "$LAST_FORGET_FAILED"`
@@ -67,7 +67,7 @@ if [ "$PREV_TIME_BACKUP_WARN" -gt "$LAST_BACKUP_EPOCH" ]; then
 fi
 
 if [ "$LAST_FORGET_FAILED_EPOCH" -gt "$LAST_BACKUP_EPOCH" ] && [ "$LAST_FORGET_FAILED" != "" ]; then
-    echo "WARNING: Last backup forget action ended in failed state."
+    echo "WARNING: Last backup prune and forget action ended in failed state."
     exit 1
 fi
 

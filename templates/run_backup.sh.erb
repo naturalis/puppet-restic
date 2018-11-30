@@ -14,7 +14,6 @@ HOST=`hostname`
 KEEPLAST=<%= @restic_keep_last %>
 KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
 
-
 # check if password file exists
 if [ ! -f $PASSWORD_FILE ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Password file $PASSWORD_FILE not found, exiting"
@@ -45,6 +44,27 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     exit 0
 fi
 
+# check if forget and prune job is requested
+
+<% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
+PRUNEHOUR=<%= @prune_hour %>
+CURRENTHOUR=`date +"%-H"`
+if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune and gorget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
+    $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+    # when forget action fails then try again in 5 minutes, create warning state when failed for a second time. 
+    if [ $? = "1" ] ; then    
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup prune and forget action first try failed, waiting 15 minutes and try to clear stale locks before 2nd try"
+      sleep 15m
+      $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
+      $RUN_RESTIC --host $HOST forget --prune --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+      if [ $? = "1" ] ; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup prune and forget action failed to run"
+        exit 1
+      fi
+    fi
+fi
+<% end -%>
 
 # check if backup has been made
 SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
@@ -98,19 +118,6 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
 # report ok when backup succeeded and start forget action
   if [ $? = "0" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup succeeded"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
-    $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
-    # when forget action fails then try again in 5 minutes, create warning state when failed for a second time. 
-    if [ $? = "1" ] ; then    
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action first try failed, waiting 5 minutes and try to clear stale locks before 2nd try"
-      sleep 5m
-      $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
-      $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
-      if [ $? = "1" ] ; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed to run"
-        exit 1
-      fi
-    fi
   else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
   fi
