@@ -6,9 +6,12 @@
 ##### START CONFIG ###################################################
 
 DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/samba
+PATH=/usr/bin:/usr/sbin:/bin:/sbin
 
 ##### STOP CONFIG ####################################################
-PATH=/usr/bin:/usr/sbin:/bin:/sbin
+
+# Define and Create mysql backup directory if needed
+mkdir -p $DIR
 
 set -o pipefail
 
