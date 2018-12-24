@@ -82,6 +82,12 @@ if [[ $SNAPSHOT_CHECK =~ "unable to create lock in backend" ]] ; then
   fi
 fi
 
+if [[ $SNAPSHOT_CHECK =~ "client.RemoveObject: Access Denied" ]] ; then
+   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Repository returns access denied on locks, possibly prunejob running."
+   exit 0
+fi
+
+
 if [ "$NUM_OF_BACKUP" = "0" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Initializing Repo and order to create backup"
     $RUN_RESTIC init
@@ -97,7 +103,7 @@ fi
 
 # check if backup is needed since yesterday
 if [ "$BACKUP_NEEDED" -eq 0 ] ; then
-   LAST_BACKUP=`$RUN_RESTIC snapshots -H $HOST --last | tail -n 3 | head -n 1 | awk -F '  ' '{print $2}'`
+   LAST_BACKUP=`echo $SNAPSHOT_CHECK | awk '{print $(NF-6)" "$(NF-5)}'`
    LAST_BACKUP_EPOCH=`date +%s -d "$LAST_BACKUP"`
    PREV_TIME_BACKUP=`date +%s -d "$TIME_BETWEEN_BACKUP"`
    if [ "$PREV_TIME_BACKUP" -gt "$LAST_BACKUP_EPOCH" ] ; then
