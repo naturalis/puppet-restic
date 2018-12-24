@@ -44,25 +44,53 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     exit 0
 fi
 
-# check if forget and prune job is requested
-
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
+# check if forget and prune job is requested
 PRUNEHOUR=<%= @prune_hour %>
 CURRENTHOUR=`date +"%-H"`
 if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune and gorget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
-    $RUN_RESTIC --host $HOST forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
-    # when forget action fails then try again in 5 minutes, create warning state when failed for a second time. 
-    if [ $? = "1" ] ; then    
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup prune and forget action first try failed, waiting 15 minutes and try to clear stale locks before 2nd try"
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
+    # get all hostnames from snapshots
+    hosts_array=( $(restic snapshots | tail -n +3 | head -n -2 | awk '{print $4}' | sort -u) )
+    for forget_host in "${hosts_array[@]}"
+      do
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION for host ${forget_host}"
+        $RUN_RESTIC --host ${forget_host} forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+
+        # when forget action fails then try again in 1 minute, create warning state when failed for a second time. 
+        if [ $? = "1" ] ; then
+          echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action first try failed, waiting 1 minute and try to clear stale locks before 2nd try"
+          sleep 1m
+          $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
+          $RUN_RESTIC --host ${forget_host} forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+          if [ $? = "1" ] ; then
+           echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed to run"
+           exit 1
+          fi
+        fi
+      done
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action started"
+    $RUN_RESTIC prune 2>&1 >> /var/log/restic/restic.log
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action first try failed, waiting 15 minutes and try to clear stale locks before 2nd try "
       sleep 15m
       $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
-      $RUN_RESTIC --host $HOST forget --prune --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
+      $RUN_RESTIC prune >> /var/log/restic/restic.log
       if [ $? = "1" ] ; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup prune and forget action failed to run"
-        exit 1
+       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action failed to run"
+       exit 1
       fi
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action succeeded"
     fi
+fi
+<% end -%>
+
+<% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
+PRUNEHOUR=<%= @prune_hour %>
+CURRENTHOUR=`date +"%-H"`
+if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
+  exit 0
 fi
 <% end -%>
 

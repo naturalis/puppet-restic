@@ -18,6 +18,7 @@ class restic(
   $restic_keep_prune_job_hour       = 10,       # hour when random = false
   $restic_keep_last                 = 60,       # restic forget options
   $restic_keep_within_duration      = '60d',    # restic forget options
+  $restic_disable_during_prune      = true,     # disable running backups during prune_job_hour and prune_job_hour+1
 
 # default check options
   $chkwarninghours                  = 26,
