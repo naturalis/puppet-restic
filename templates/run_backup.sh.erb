@@ -104,6 +104,7 @@ if [[ $SNAPSHOT_CHECK =~ "unable to create lock in backend" ]] ; then
   sleep 5m
   $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
   SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
+  NUM_OF_BACKUP=`echo $SNAPSHOT_CHECK | grep "snapshots" | wc -l`
   if [[ $SNAPSHOT_CHECK =~ "unable to create lock in backend" ]] ; then
      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Snapshot check 2nd try also returned lock in backend, exiting backup run"
      exit 0
