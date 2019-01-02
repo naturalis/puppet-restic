@@ -25,6 +25,7 @@ SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
     exit 1
   fi
+  chmod 600 $SWAPLOCATION
   mkswap $SWAPLOCATION 2>&1
   if [ $? = "1" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
