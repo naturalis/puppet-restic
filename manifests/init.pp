@@ -19,6 +19,9 @@ class restic(
   $restic_keep_last                 = 60,       # restic forget options
   $restic_keep_within_duration      = '60d',    # restic forget options
   $restic_disable_during_prune      = true,     # disable running backups during prune_job_hour and prune_job_hour+1
+  $restic_enable_swap               = false,    # enables the use of a temporary swapfile which might help with out of memory issues
+  $restic_swap_size                 = '2G',
+  $restic_swap_location             = '/tmp/.swapfile',
 
 # default check options
   $chkwarninghours                  = 26,

@@ -14,6 +14,35 @@ HOST=`hostname`
 KEEPLAST=<%= @restic_keep_last %>
 KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
 
+
+<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+# Creating temporary swapfile
+SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
+SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
+  fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
+    exit 1
+  fi
+  mkswap $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
+    exit 1
+  fi
+  swapon $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
+    exit 1
+  fi
+<% end -%>
+
+# check if force option is passed through
+if [ "$1" = "force" ]; then
+     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forcing backup even if last backup is within parameters"
+     BACKUP_NEEDED=1
+fi
+
 # check if password file exists
 if [ ! -f $PASSWORD_FILE ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Password file $PASSWORD_FILE not found, exiting"
@@ -44,7 +73,63 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     exit 0
 fi
 
+<% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
+PRUNEHOUR=<%= @prune_hour %>
+CURRENTHOUR=`date +"%-H"`
+if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
+  exit 0
+fi
+<% end -%>
+
+
+<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+# Creating temporary swapfile
+SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
+SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
+  fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
+    exit 1
+  fi
+  mkswap $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
+    exit 1
+  fi
+  swapon $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
+    exit 1
+  fi
+<% end -%>
+
+
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
+<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+  # Creating temporary swapfile
+  SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
+  SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
+    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
+      exit 1
+    fi
+    mkswap $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
+      exit 1
+    fi
+    swapon $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
+      exit 1
+    fi
+  <% end -%>
+
+
 # check if forget and prune job is requested
 PRUNEHOUR=<%= @prune_hour %>
 CURRENTHOUR=`date +"%-H"`
@@ -65,6 +150,15 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
           $RUN_RESTIC --host ${forget_host} forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
           if [ $? = "1" ] ; then
            echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed to run"
+           <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+           # Turning off swap
+             echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+             swapoff -a $SWAPLOCATION 2>&1
+             if [ $? = "1" ] ; then
+               echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+             fi
+             rm -f $SWAPLOCATION
+           <% end -%>
            exit 1
           fi
         fi
@@ -75,22 +169,22 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action first try failed, waiting 15 minutes and try to clear stale locks before 2nd try "
       sleep 15m
       $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
-      $RUN_RESTIC prune >> /var/log/restic/restic.log
+      $RUN_RESTIC prune 2>&1 >> /var/log/restic/restic.log
       if [ $? = "1" ] ; then
        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action failed to run"
+       <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+        # Turning off swap
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+        swapoff -a $SWAPLOCATION 2>&1
+        if [ $? = "1" ] ; then
+          echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+        fi
+        rm -f $SWAPLOCATION
+       <% end -%>
        exit 1
       fi
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action succeeded"
     fi
-fi
-<% end -%>
-
-<% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
-PRUNEHOUR=<%= @prune_hour %>
-CURRENTHOUR=`date +"%-H"`
-if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
-  exit 0
 fi
 <% end -%>
 
@@ -113,6 +207,15 @@ fi
 
 if [[ $SNAPSHOT_CHECK =~ "client.RemoveObject: Access Denied" ]] ; then
    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Repository returns access denied on locks, possibly prunejob running."
+    <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+      # Turning off swap
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+      swapoff -a $SWAPLOCATION 2>&1
+      if [ $? = "1" ] ; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+      fi
+      rm -f $SWAPLOCATION
+    <% end -%>
    exit 0
 fi
 
@@ -142,9 +245,39 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
 fi
 
 if [ "$BACKUP_NEEDED" -eq 1 ] ; then
+  <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+  # Creating temporary swapfile
+  SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
+  SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
+    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
+      exit 1
+    fi
+    mkswap $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
+      exit 1
+    fi
+    swapon $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
+      exit 1
+    fi
+  <% end -%>
   <%= @pre_backup_script_command %> 
   if [ $? = "1" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Error in prebackup, check /var/log/restic/prebackup.log"
+    <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+      # Turning off swap
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+      swapoff -a $SWAPLOCATION 2>&1
+      if [ $? = "1" ] ; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+      fi
+      rm -f $SWAPLOCATION
+    <% end -%>
     exit 2
   fi
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
@@ -159,4 +292,15 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required, Last backup was $LAST_BACKUP"
 fi
+
+<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+# Turning off swap
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+  swapoff -a $SWAPLOCATION 2>&1
+  if [ $? = "1" ] ; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+  fi
+  rm -f $SWAPLOCATION
+<% end -%>
+
 
