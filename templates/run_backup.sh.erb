@@ -17,8 +17,8 @@ KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
 
 <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
 # Creating temporary swapfile
-SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
-SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+SWAPSIZE=<%= @restic_swap_size %>
+SWAPLOCATION=<%= @restic_swap_location %>
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
   fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
   if [ $? = "1" ] ; then
@@ -110,8 +110,8 @@ SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
 <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
   # Creating temporary swapfile
-  SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
-  SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
+    SWAPSIZE=<%= @restic_swap_size %>
+    SWAPLOCATION=<%= @restic_swap_location %>
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
     fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
     if [ $? = "1" ] ; then
