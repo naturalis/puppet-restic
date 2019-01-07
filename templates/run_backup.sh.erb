@@ -1,5 +1,47 @@
 #!/usr/bin/env bash
 
+# functions for preparing and cleaning up restic prune and backup jobs, currently exclusive for creating temporary swap
+function prepare {
+  # function for preparing restic run
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Running preparation if any steps configured"
+  <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+  # Creating temporary swapfile
+    SWAPSIZE=<%= @restic_swap_size %>
+    SWAPLOCATION=<%= @restic_swap_location %>
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
+    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
+      exit 1
+    fi
+    mkswap $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
+      exit 1
+    fi
+    swapon $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
+      exit 1
+    fi
+  <% end -%>
+}
+
+function cleanup {
+  # Cleaning up
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Cleaning up after backup if configured"
+  <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+  # Turning off swap
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
+    swapoff -a $SWAPLOCATION 2>&1
+    if [ $? = "1" ] ; then
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
+    fi
+    rm -f $SWAPLOCATION
+  <% end -%>
+}
+
+
 source <%= @restic_path %>/config.sh
 
 ### --- LOGIC --- ###
@@ -13,30 +55,6 @@ BACKUP_NEEDED=0
 HOST=`hostname`
 KEEPLAST=<%= @restic_keep_last %>
 KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
-
-
-<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-# Creating temporary swapfile
-SWAPSIZE=<%= @restic_swap_size %>
-SWAPLOCATION=<%= @restic_swap_location %>
-  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
-  fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
-    exit 1
-  fi
-  chmod 600 $SWAPLOCATION
-  mkswap $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
-    exit 1
-  fi
-  swapon $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
-    exit 1
-  fi
-<% end -%>
 
 # check if force option is passed through
 if [ "$1" = "force" ]; then
@@ -83,59 +101,14 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHO
 fi
 <% end -%>
 
-
-<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-# Creating temporary swapfile
-SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
-SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
-  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
-  fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
-    exit 1
-  fi
-  mkswap $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
-    exit 1
-  fi
-  swapon $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
-    exit 1
-  fi
-<% end -%>
-
-
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
-<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-  # Creating temporary swapfile
-    SWAPSIZE=<%= @restic_swap_size %>
-    SWAPLOCATION=<%= @restic_swap_location %>
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
-    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
-      exit 1
-    fi
-    mkswap $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
-      exit 1
-    fi
-    swapon $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
-      exit 1
-    fi
-  <% end -%>
-
 
 # check if forget and prune job is requested
 PRUNEHOUR=<%= @prune_hour %>
 CURRENTHOUR=`date +"%-H"`
 if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
+    prepare
     # get all hostnames from snapshots
     hosts_array=( $(restic snapshots | tail -n +3 | head -n -2 | awk '{print $4}' | sort -u) )
     for forget_host in "${hosts_array[@]}"
@@ -151,15 +124,7 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
           $RUN_RESTIC --host ${forget_host} forget --keep-last $KEEPLAST --keep-within $KEEPWITHINDURATION 2>&1 >> /var/log/restic/restic.log
           if [ $? = "1" ] ; then
            echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup forget action failed to run"
-           <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-           # Turning off swap
-             echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-             swapoff -a $SWAPLOCATION 2>&1
-             if [ $? = "1" ] ; then
-               echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
-             fi
-             rm -f $SWAPLOCATION
-           <% end -%>
+           cleanup
            exit 1
           fi
         fi
@@ -173,18 +138,11 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
       $RUN_RESTIC prune 2>&1 >> /var/log/restic/restic.log
       if [ $? = "1" ] ; then
        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action failed to run"
-       <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-        # Turning off swap
-        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-        swapoff -a $SWAPLOCATION 2>&1
-        if [ $? = "1" ] ; then
-          echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
-        fi
-        rm -f $SWAPLOCATION
-       <% end -%>
+       cleanup
        exit 1
       fi
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action succeeded"
+      cleanup
     fi
 fi
 <% end -%>
@@ -208,15 +166,7 @@ fi
 
 if [[ $SNAPSHOT_CHECK =~ "client.RemoveObject: Access Denied" ]] ; then
    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Repository returns access denied on locks, possibly prunejob running."
-    <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-      # Turning off swap
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-      swapoff -a $SWAPLOCATION 2>&1
-      if [ $? = "1" ] ; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
-      fi
-      rm -f $SWAPLOCATION
-    <% end -%>
+   cleanup
    exit 0
 fi
 
@@ -246,39 +196,11 @@ if [ "$BACKUP_NEEDED" -eq 0 ] ; then
 fi
 
 if [ "$BACKUP_NEEDED" -eq 1 ] ; then
-  <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-  # Creating temporary swapfile
-  SWAPSIZE=<% scope.lookupvar('restic::restic_swap_size') -%>
-  SWAPLOCATION=<% scope.lookupvar('restic::restic_swap_location') -%>
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
-    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
-      exit 1
-    fi
-    mkswap $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
-      exit 1
-    fi
-    swapon $SWAPLOCATION 2>&1
-    if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
-      exit 1
-    fi
-  <% end -%>
+  prepare
   <%= @pre_backup_script_command %> 
   if [ $? = "1" ] ; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Error in prebackup, check /var/log/restic/prebackup.log"
-    <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-      # Turning off swap
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-      swapoff -a $SWAPLOCATION 2>&1
-      if [ $? = "1" ] ; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
-      fi
-      rm -f $SWAPLOCATION
-    <% end -%>
+    cleanup
     exit 2
   fi
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup initiated"
@@ -290,18 +212,9 @@ if [ "$BACKUP_NEEDED" -eq 1 ] ; then
   else
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup failed"
   fi
+  cleanup
 else
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required, Last backup was $LAST_BACKUP"
+   echo "$(date '+%Y-%m-%d %H:%M:%S') -- No backup required, Last backup was $LAST_BACKUP"
 fi
-
-<% if scope.lookupvar('restic::restic_enable_swap') == true -%>
-# Turning off swap
-  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-  swapoff -a $SWAPLOCATION 2>&1
-  if [ $? = "1" ] ; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
-  fi
-  rm -f $SWAPLOCATION
-<% end -%>
 
 
