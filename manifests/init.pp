@@ -22,6 +22,8 @@ class restic(
   $restic_enable_swap               = false,    # enables the use of a temporary swapfile which might help with out of memory issues
   $restic_swap_size                 = '2G',
   $restic_swap_location             = '/tmp/.swapfile',
+  $restic_time_between_backup       = '1',
+  $restic_time_between_hourlybackup = 'yesterday',
 
 # default check options
   $chkwarninghours                  = 26,
@@ -46,7 +48,7 @@ class restic(
   $mysqlshowcompatibility56         = true,   # needed for most mysql install on ubuntu 16.04LTS
   $cronminute                       = '*/20', # cronminute is ignored then $cronrandom is true
   $cronrandom                       = true,   # randomize minute 0-59 for spreading backups every hour
-  $cronhour                         = '*',
+  $cronhour                         = '*',    # if cronhour = * then time_between_hourlybackup is active else time_between_backup is used,. 
   $exclude_list                     = [
                                       '/bin',
                                       '/boot',
@@ -118,6 +120,13 @@ class restic(
     $pgsqlscript =  "${restic_path}/pgsqlbackup.sh"
       class { 'restic::pgsqlbackup':
     }
+  }
+
+# define backup interval should be low if backup is scheduled else bidaily backups will be made instead of daily backups.
+  if ($cronhour == "*" ){
+    $_restic_time_between_backup = $restic_time_between_hourlybackup
+  } else {
+    $_restic_time_between_backup = $restic_time_between_backup
   }
 
 # Create array from scripts which will be used in the resticscript.sh

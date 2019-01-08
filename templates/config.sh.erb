@@ -16,7 +16,7 @@ DOWNLOAD_LIMIT_KiB=<%= @restic_download_limit %>
 ## -1 days
 ## -24 hour
 ## -5 hour
-TIME_BETWEEN_BACKUP=yesterday
+TIME_BETWEEN_BACKUP=<%= @_restic_time_between_backup %>
 
 PASSWORD_FILE=<%= @restic_path %>/password
 EXCLUDE_FILE=<%= @restic_path %>/exclude_list
