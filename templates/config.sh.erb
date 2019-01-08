@@ -3,7 +3,7 @@
 # This file is managed by puppet
 #
 
-BACKUP_PATH=/
+BACKUP_PATH=<%= @restic_backup_path %>
 AWS_ACCESS_KEY_ID="<%= @restic_aws_access_key %>"
 AWS_SECRET_ACCESS_KEY="<%= @restic_aws_secret_key %>"
 GOGC=5

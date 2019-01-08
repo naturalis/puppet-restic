@@ -49,6 +49,7 @@ class restic(
   $cronminute                       = '*/20', # cronminute is ignored then $cronrandom is true
   $cronrandom                       = true,   # randomize minute 0-59 for spreading backups every hour
   $cronhour                         = '*',    # if cronhour = * then time_between_hourlybackup is active else time_between_backup is used,. 
+  $restic_backup_path               = '/',
   $exclude_list                     = [
                                       '/bin',
                                       '/boot',
