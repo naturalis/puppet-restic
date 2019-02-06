@@ -68,6 +68,15 @@ if [ ! -f $PASSWORD_FILE ]; then
     exit 1
 fi
 
+# check if restic backup process is stuck ( error: specific key exists )
+NUM_OF_ERROR=`tail /var/log/restic/cron.log -n 25 | grep 'The specified key does not exist.' | wc -l`
+if [ "$NUM_OF_ERROR" = "25" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') -- Specified key does not exists atleast 25 times in cron.log, doing kill and recovery of backup."
+    killall -9 $RESTIC_BIN
+    sleep 30s
+    BACKUP_NEEDED=1
+fi
+
 # check if prebackup process is running
 NUM_OF_PROC=`ps aux | grep prebackup.sh | grep -v grep | wc -l`
 if [ "$NUM_OF_PROC" != "0" ]; then
@@ -91,16 +100,6 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     ps aux | grep burp | awk '{print "Started at: "$9 " || Running for: " $10}'
     exit 0
 fi
-
-<% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
-PRUNEHOUR=<%= @prune_hour %>
-CURRENTHOUR=`date +"%-H"`
-if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
-  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
-  exit 0
-fi
-<% end -%>
-
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
 
 # check if forget and prune job is requested
@@ -146,6 +145,18 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
     fi
 fi
 <% end -%>
+
+
+<% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
+PRUNEHOUR=<%= @prune_hour %>
+CURRENTHOUR=`date +"%-H"`
+if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
+  exit 0
+fi
+<% end -%>
+
+
 
 # check if backup has been made
 SNAPSHOT_CHECK=`$RUN_RESTIC snapshots -H $HOST 2>&1`
