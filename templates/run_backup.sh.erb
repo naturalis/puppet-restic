@@ -9,17 +9,17 @@ function prepare {
     SWAPSIZE=<%= @restic_swap_size %>
     SWAPLOCATION=<%= @restic_swap_location %>
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Creating temporary swapfile in $SWAPLOCATION with size $SWAPSIZE"
-    fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
+    /usr/bin/fallocate -l $SWAPSIZE $SWAPLOCATION 2>&1
     if [ $? = "1" ] ; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : fallocate failed"
       exit 1
     fi
-    mkswap $SWAPLOCATION 2>&1
+    /sbin/mkswap $SWAPLOCATION 2>&1
     if [ $? = "1" ] ; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : mkswap failed"
       exit 1
     fi
-    swapon $SWAPLOCATION 2>&1
+    /sbin/swapon $SWAPLOCATION 2>&1
     if [ $? = "1" ] ; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Enabling swap : swapon failed"
       exit 1
@@ -33,7 +33,7 @@ function cleanup {
   <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
   # Turning off swap
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Turning off swap and cleaning up"
-    swapoff -a $SWAPLOCATION 2>&1
+    /sbin/swapoff -a $SWAPLOCATION 2>&1
     if [ $? = "1" ] ; then
       echo "$(date '+%Y-%m-%d %H:%M:%S') -- Swap : swapoff -a failed"
     fi
