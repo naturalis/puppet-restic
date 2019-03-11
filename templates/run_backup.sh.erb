@@ -55,11 +55,13 @@ BACKUP_NEEDED=0
 HOST=`hostname`
 KEEPLAST=<%= @restic_keep_last %>
 KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
+PRUNEHOUR=<%= @prune_hour %>
 
 # check if force option is passed through
 if [ "$1" = "force" ]; then
      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forcing backup even if last backup is within parameters"
      BACKUP_NEEDED=1
+     PRUNEHOUR=25     # always run, disable prune
 fi
 
 # check if password file exists
@@ -101,9 +103,7 @@ if [ "$NUM_OF_PROC" = "1" ]; then
     exit 0
 fi
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
-
 # check if forget and prune job is requested
-PRUNEHOUR=<%= @prune_hour %>
 CURRENTHOUR=`date +"%-H"`
 if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
@@ -131,8 +131,8 @@ if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action started"
     $RUN_RESTIC prune 2>&1 >> /var/log/restic/restic.log
     if [ $? = "1" ] ; then
-      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action first try failed, waiting 15 minutes and try to clear stale locks before 2nd try "
-      sleep 15m
+      echo "$(date '+%Y-%m-%d %H:%M:%S') -- Prune action first try failed, waiting 1 minute and try to clear stale locks before 2nd try "
+      sleep 1m
       $RUN_RESTIC unlock 2>&1 >> /var/log/restic/restic.log
       $RUN_RESTIC prune 2>&1 >> /var/log/restic/restic.log
       if [ $? = "1" ] ; then
@@ -148,7 +148,6 @@ fi
 
 
 <% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
-PRUNEHOUR=<%= @prune_hour %>
 CURRENTHOUR=`date +"%-H"`
 if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
