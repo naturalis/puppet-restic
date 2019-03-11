@@ -5,6 +5,11 @@ function prepare {
   # function for preparing restic run
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Running preparation if any steps configured"
   <% if scope.lookupvar('restic::restic_enable_swap') == true -%>
+
+  # Turning off swap, sometimes it is still enabled 
+  /sbin/swapoff -a $SWAPLOCATION 2>&1
+  rm -f $SWAPLOCATION
+
   # Creating temporary swapfile
     SWAPSIZE=<%= @restic_swap_size %>
     SWAPLOCATION=<%= @restic_swap_location %>
