@@ -14,12 +14,14 @@ class restic(
   $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.4/restic_0.9.4_linux_amd64.bz2',
   $restic_pre_command               = '',
   $restic_keep_prune_job            = true,
-  $restic_keep_prune_job_random     = true,    # if enabled a random hour will be taken in which a prune and forget job wil run instead of backup. 
-  $restic_keep_prune_job_hour       = 10,       # hour when random = false
-  $restic_keep_last                 = 60,       # restic forget options
-  $restic_keep_within_duration      = '60d',    # restic forget options
-  $restic_disable_during_prune      = true,     # disable running backups during prune_job_hour and prune_job_hour+1
-  $restic_enable_swap               = false,    # enables the use of a temporary swapfile which might help with out of memory issues
+  $restic_keep_prune_job_random     = true,    # if enabled a random hour and weekday will be taken in which a prune and forget job wil run instead of backup. 
+  $restic_keep_prune_job_hour       = 10,      # hour when random = false
+  $restic_keep_prune_job_weekday    = 6,       # prune by default on saturday
+  $restic_keep_last                 = 60,      # restic forget options
+  $restic_keep_within_duration      = '60d',   # restic forget options
+  $restic_disable_during_prune      = true,    # disable running backups during prune_job_hour and prune_job_hour+prune_hours
+  $restic_disable_during_prune_hours= 12,      # amount of hours to let prune complete
+  $restic_enable_swap               = false,   # enables the use of a temporary swapfile which might help with out of memory issues
   $restic_swap_size                 = '2G',
   $restic_swap_location             = '/tmp/.swapfile',
   $restic_time_between_backup       = '1',
@@ -222,8 +224,10 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
 # create restic run script for backups using crontab
   if ($restic_keep_prune_job_random == true){
     $prune_hour = fqdn_rand(23)
+    $prune_weekday = fqdn_rand(6)
   } else {
     $prune_hour = $restic_keep_prune_job_hour
+    $prune_weekday = $restic_keep_prune_job_weekday
   }
 
   file { "${restic_path}/run_backup.sh":

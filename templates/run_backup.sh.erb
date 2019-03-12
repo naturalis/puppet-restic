@@ -61,6 +61,10 @@ HOST=`hostname`
 KEEPLAST=<%= @restic_keep_last %>
 KEEPWITHINDURATION=<%= @restic_keep_within_duration %>
 PRUNEHOUR=<%= @prune_hour %>
+PRUNEWEEKDAY=<%= @prune_weekday %>
+CURRENTTIME=`date +%s`
+CURRENTHOUR=`date +"%-H"`
+CURRENTWEEKDAY=`date "+%-w"`
 
 # check if force option is passed through
 if [ "$1" = "force" ]; then
@@ -109,8 +113,7 @@ if [ "$NUM_OF_PROC" = "1" ]; then
 fi
 <% if scope.lookupvar('restic::restic_keep_prune_job') == true -%>
 # check if forget and prune job is requested
-CURRENTHOUR=`date +"%-H"`
-if [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
+if [ "$PRUNEWEEKDAY" = "$CURRENTWEEKDAY" ] && [ "$PRUNEHOUR" = "$CURRENTHOUR" ]; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Forget snapshots with keeping atleast $KEEPLAST and not forgetting earlier than $KEEPWITHINDURATION"
     prepare
     # get all hostnames from snapshots
@@ -153,8 +156,8 @@ fi
 
 
 <% if scope.lookupvar('restic::restic_disable_during_prune') == true -%>
-CURRENTHOUR=`date +"%-H"`
-if [ "$PRUNEHOUR" = "$CURRENTHOUR" ] || [ "$(expr $PRUNEHOUR + 1)" = "$CURRENTHOUR" ] ; then
+PRUNEMAXDURATION=`date +%s -d "+<%= @restic_disable_during_prune_hours %> hours"`
+if [ "$PRUNEWEEKDAY" = "$CURRENTWEEKDAY" ] && [ "$CURRENTTIME" -gt "$PRUNEMAXDURATION" ] ; then
   echo "$(date '+%Y-%m-%d %H:%M:%S') -- Backup disabled due to prune jobs"
   exit 0
 fi
