@@ -47,19 +47,19 @@ EOF" | grep -v "SET"
         exit 1
     fi
 <% end -%> 
-${CMD} "pg_dumpall -g -U postgres > ${DIR}/${PREFIX}_<%=db %>_globals.sql"
+${CMD} pg_dumpall -g -U postgres > ${DIR}/${PREFIX}_<%=db %>_globals.sql
     if [ $? -eq 1 ]
       then
         echo "Error detected during globals dump of db: <%=db %>"
         exit 1
     fi
-${CMD} "pg_dump <%=db %> -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump"
+${CMD} pg_dump <%=db %> -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump
     if [ $? -eq 1 ]
       then
         echo "Error detected during schema dump of db: <%=db %>"
         exit 1
     fi
-${CMD} "pg_dump <%=db %> -Fc > ${DIR}/${PREFIX}_<%=db %>.dump"
+${CMD} pg_dump <%=db %> -Fc > ${DIR}/${PREFIX}_<%=db %>.dump
     if [ $? -eq 1 ]
       then
         echo "Error detected during dump of db: <%=db %>"
