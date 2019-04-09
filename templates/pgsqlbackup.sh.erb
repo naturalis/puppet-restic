@@ -13,11 +13,8 @@ PREFIX=pgsql
 DIR=<%= scope.lookupvar('restic::backuprootfolder') %>/pgsql
 mkdir -p $DIR
 
-<% if scope.lookupvar('restic::docker') == true -%>
-CMD="docker exec <%= scope.lookupvar('restic::docker_container') %>"
-<% else -%>
-CMD="su - ${USER} -c "
-chown -R ${USER}:root <%= scope.lookupvar('restic::backuprootfolder') %>
+<% if scope.lookupvar('restic::docker') == false -%>
+  chown -R ${USER}:root <%= scope.lookupvar('restic::backuprootfolder') %>
 <% end -%> 
 
 
@@ -27,39 +24,65 @@ PATH=/usr/bin:/usr/sbin:/bin:/sbin
 set -o pipefail
 
 <% if scope.lookupvar('restic::pgsqlalldatabases') == true -%>
-${CMD} "pg_dumpall" -U ${USER} | gzip -c > ${DIR}/${PREFIX}.gz
-    if [ $? -eq 1 ]
-      then
-        echo "Error detected dumping all progress databases"
-        exit 1
-    fi
-
+<% if scope.lookupvar('restic::docker') == true -%>
+    docker exec <%= scope.lookupvar('restic::docker_container') %> pg_dumpall -U ${USER} | gzip -c > ${DIR}/${PREFIX}.gz
+  <% else -%>
+    su - ${USER} -c "pg_dumpall -U ${USER} | gzip -c > ${DIR}/${PREFIX}.gz"
+  <% end -%> 
+  if [ $? -eq 1 ]
+    then
+      echo "Error detected dumping all progress databases"
+      exit 1
+  fi
 <% else -%>
 <% scope.lookupvar('restic::pgsqldatabasearray').each do |db| -%>
 <% if scope.lookupvar('restic::pgsqlprebackupvacuum') == true -%>
-${CMD} "/usr/bin/psql -d <%=db %> <<EOF
+<% if scope.lookupvar('restic::docker') == true -%>
+  docker exec <%= scope.lookupvar('restic::docker_container') %> /usr/bin/psql -d <%=db %> <<EOF
+SET statement_timeout = 0;
+VACUUM ANALYZE;
+EOF | grep -v "SET"
+<% else -%>
+  su - ${USER} -c "/usr/bin/psql -d <%=db %> <<EOF
 SET statement_timeout = 0;
 VACUUM ANALYZE;
 EOF" | grep -v "SET"
+<% end -%> 
     if [ $? -eq 1 ]
       then
         echo "Error detected during vacuum"
         exit 1
     fi
 <% end -%> 
-${CMD} pg_dumpall -g -U ${USER} > ${DIR}/${PREFIX}_<%=db %>_globals.sql
+
+
+<% if scope.lookupvar('restic::docker') == true -%>
+  docker exec <%= scope.lookupvar('restic::docker_container') %> pg_dumpall -g -U ${USER} | gzip -c > ${DIR}/${PREFIX}_<%=db %>_globals.sql
+<% else -%>
+  su - ${USER} -c "pg_dumpall -g -U ${USER} | gzip -c > ${DIR}/${PREFIX}_<%=db %>_globals.sql"
+<% end -%> 
     if [ $? -eq 1 ]
       then
         echo "Error detected during globals dump of db: <%=db %>"
         exit 1
     fi
-${CMD} pg_dump <%=db %> -U ${USER} -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump
+
+<% if scope.lookupvar('restic::docker') == true -%>
+  docker exec <%= scope.lookupvar('restic::docker_container') %> pg_dump <%=db %> -U ${USER} -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump
+<% else -%>
+  su - ${USER} -c "pg_dump <%=db %> -U ${USER} -Fc --schema-only > ${DIR}/${PREFIX}_<%=db %>_schemaonly.dump"
+<% end -%> 
     if [ $? -eq 1 ]
       then
         echo "Error detected during schema dump of db: <%=db %>"
         exit 1
     fi
-${CMD} pg_dump <%=db %> -U ${USER} -Fc > ${DIR}/${PREFIX}_<%=db %>.dump
+
+<% if scope.lookupvar('restic::docker') == true -%>
+  docker exec <%= scope.lookupvar('restic::docker_container') %> pg_dump <%=db %> -U ${USER} -Fc > ${DIR}/${PREFIX}_<%=db %>.dump
+<% else -%>
+  su - ${USER} -c "pg_dump <%=db %> -U ${USER} -Fc > ${DIR}/${PREFIX}_<%=db %>.dump"
+<% end -%>
     if [ $? -eq 1 ]
       then
         echo "Error detected during dump of db: <%=db %>"
