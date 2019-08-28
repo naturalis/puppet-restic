@@ -263,11 +263,11 @@ $pre_command_array = [$restic_pre_command, $sambascript, $mysqlscript, $pgsqlscr
   augeas { "sudochkbackup":
     context => "/files/etc/sudoers",
     changes => [
-      "set Cmnd_Alias[alias/name = 'SERVICES']/alias/name SERVICES",
-      "set Cmnd_Alias[alias/name = 'SERVICES']/alias/command[1] '${restic_path}/chkrestic.sh'",
+      "set Cmnd_Alias[alias/name = 'RESTICSERVICES']/alias/name RESTICSERVICES",
+      "set Cmnd_Alias[alias/name = 'RESTICSERVICES']/alias/command[1] '${restic_path}/chkrestic.sh'",
       "set spec[user = 'sensu']/user sensu",
       "set spec[user = 'sensu']/host_group/host ALL",
-      "set spec[user = 'sensu']/host_group/command SERVICES",
+      "set spec[user = 'sensu']/host_group/command RESTICSERVICES",
       "set spec[user = 'sensu']/host_group/command/runas_user root",
       "set spec[user = 'sensu']/host_group/command/tag NOPASSWD",
       ],
