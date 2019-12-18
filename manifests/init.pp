@@ -10,8 +10,8 @@ class restic(
   $restic_upload_limit              = '204800',
   $restic_download_limit            = '204800',
   $restic_path                      = '/opt/restic',
-  $restic_binary                    = 'restic_0.9.5_linux_amd64',
-  $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.5/restic_0.9.5_linux_amd64.bz2',
+  $restic_binary                    = 'restic_0.9.6_linux_amd64',
+  $restic_download_url              = 'https://github.com/restic/restic/releases/download/v0.9.6/restic_0.9.6_linux_amd64.bz2',
   $restic_pre_command               = '',
   $restic_keep_prune_job            = true,
   $restic_keep_prune_job_random     = true,    # if enabled a random hour and weekday will be taken in which a prune and forget job wil run instead of backup. 
